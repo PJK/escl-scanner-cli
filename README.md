@@ -36,9 +36,7 @@ python -m twine upload dist/*
 
 ## Usage
 ```
-usage: scanner.py [-h] [--source {feeder,flatbed,automatic}] [--format {pdf,jpeg}] [--grayscale] [--resolution {75,100,200,300,600}] [--debug] [--no-open]
-                  [--quiet] [--duplex]
-                  filename
+escl-scan output_filename.pdf
 
 positional arguments:
   filename
