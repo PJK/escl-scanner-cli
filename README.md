@@ -21,6 +21,18 @@ Locally:
 pip install .
 ```
 
+## Publishing to PyPI
+
+```
+python -m build
+python -m twine upload dist/*
+```
+
+## TODOs
+
+- Use click for CLI parsing
+- Automatic publishing to PyPI
+
 ## Usage
 ```
 usage: scanner.py [-h] [--source {feeder,flatbed,automatic}] [--format {pdf,jpeg}] [--grayscale] [--resolution {75,100,200,300,600}] [--debug] [--no-open]
