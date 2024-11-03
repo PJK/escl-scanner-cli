@@ -5,6 +5,8 @@ import sys
 import json
 import time
 import subprocess
+import os
+import datetime
 
 import requests
 import xmltodict
@@ -58,9 +60,23 @@ def main():
     parser.add_argument('--no-open', '-o', action='store_false', dest='open')
     parser.add_argument('--quiet', '-q', action='store_true')
     parser.add_argument('--duplex', '-D', action='store_true')
+    parser.add_argument('--today', '-t', action='store_true',
+                        help='Prepend date to file name in ISO format')
     parser.add_argument('filename')
 
     args = parser.parse_args()
+
+    if args.today:
+        args.filename = (
+            datetime.date.today().isoformat() + '-' + args.filename)
+
+    basename, fsuffix = os.path.splitext(args.filename)
+    if args.format == 'jpeg':
+        if fsuffix not in {'', '.jpeg', '.jpg'}:
+            print(f'Improper file suffix {fsuffix}', file=sys.stderr)
+            sys.exit(1)
+        if fsuffix == '':
+            fsuffix = '.jpg'
 
     info = resolve_scanner()
     if not info:
@@ -68,7 +84,11 @@ def main():
         sys.exit(1)
     props = info.properties
     if not args.quiet:
-        print(f'Using {info.name}')
+        suffix = '._uscan._tcp.local.'
+        name = info.name
+        if info.name.endswith(suffix):
+            name = info.name[:-len(suffix)]
+        print(f'Using {name}')
     if args.duplex and props[b'duplex'] != b'T':
         print('Duplex not supported', file=sys.stderr)
         sys.exit(1)
@@ -93,7 +113,7 @@ def main():
         if job_uuid is None:
             return status, None
 
-        uuid_prefix = "urn:uuid:" # Seen in a Brother MFC device
+        uuid_prefix = "urn:uuid:"  # Seen in a Brother MFC device
         for jobinfo in status['scan:Jobs']['scan:JobInfo']:
             current_uuid = jobinfo['pwg:JobUuid']
             if current_uuid.startswith(uuid_prefix):
@@ -163,7 +183,7 @@ def main():
             with open(args.filename, 'wb') as f:
                 f.write(resp.content)
         else:
-            with open(f'{args.filename.split(".")[:-1]}-{page}.jpg', 'wb') as f:
+            with open(f'{basename}-{page}{fsuffix}', 'wb') as f:
                 f.write(resp.content)
             page += 1
         if status['pwg:State'] != 'Processing':
@@ -181,9 +201,12 @@ def main():
         if args.format == 'pdf':
             subprocess.run(['open', args.filename])
         else:
-            subprocess.run(['open', f'{args.filename.split(".")[:-1]}-1.jpg'])
+            subprocess.run(['open', f'{basename}-1{fsuffix}'])
     return 0
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)

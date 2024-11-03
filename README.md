@@ -1,11 +1,14 @@
+
 # scanner-cli
-A MacOS CLI client for scanning documents using a network scanner supporting the [Mopria Alliance eSCL Scan Technical Specification](https://mopria.org/MopriaeSCLSpecDownload.php)
+A MacOS/Linux CLI client for scanning documents using a network scanner supporting the [Mopria Alliance eSCL Scan Technical Specification](https://mopria.org/MopriaeSCLSpecDownload.php)
 
 Known to work with at least:
+- Brother DCP-L3550CDW
 - Brother MFC-L2710DW
 - Canon Pixma G3260
 - HP DeskJet 4640 series
 - HP OfficeJet Pro 9000 series
+- HP OfficeJet Pro 9010 series
 
 ## Installation
 From PyPI:
@@ -37,4 +40,5 @@ optional arguments:
   --no-open, -o
   --quiet, -q
   --duplex, -D
+  --today, -t           Prepend date to file name in ISO format
   ```
