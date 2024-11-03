@@ -2,13 +2,20 @@
 A MacOS CLI client for scanning documents using a network scanner supporting the [Mopria Alliance eSCL Scan Technical Specification](https://mopria.org/MopriaeSCLSpecDownload.php)
 
 Known to work with at least:
-- HP Deskjet 4640 series
-- Canon Pixma G3260
 - Brother MFC-L2710DW
+- Canon Pixma G3260
+- HP DeskJet 4640 series
+- HP OfficeJet Pro 9000 series
 
 ## Installation
+From PyPI:
 ```
-pip install -f requirements.txt
+pipx install escl-scanner-cli
+```
+
+Locally:
+```
+pip install .
 ```
 
 ## Usage
