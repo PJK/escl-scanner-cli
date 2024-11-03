@@ -10,4 +10,9 @@ setup(
         'xmltodict',
         'zeroconf',
     ],
+    entry_points={
+        'console_scripts': [
+            'escl-scan = scanner:main',
+        ],
+    },
 )
