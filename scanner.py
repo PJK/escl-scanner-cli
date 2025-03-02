@@ -50,8 +50,6 @@ def main():
     parser.add_argument(
         '--source', '-S',
         choices=['feeder', 'flatbed', 'automatic'], default='automatic')
-    parser.add_argument(
-        '--format', '-f', choices=['pdf', 'jpeg'], default='pdf')
     parser.add_argument('--grayscale', '-g', action='store_true')
     parser.add_argument(
         '--resolution', '-r', type=int, default=200,
@@ -70,13 +68,14 @@ def main():
         args.filename = (
             datetime.date.today().isoformat() + '-' + args.filename)
 
-    basename, fsuffix = os.path.splitext(args.filename)
-    if args.format == 'jpeg':
-        if fsuffix not in {'', '.jpeg', '.jpg'}:
-            print(f'Improper file suffix {fsuffix}', file=sys.stderr)
-            sys.exit(1)
-        if fsuffix == '':
-            fsuffix = '.jpg'
+    if not args.filename.endswith('.pdf'):
+        print('File must have a .pdf extension')
+        sys.exit(1)
+
+    # Check if the file already exists
+    if os.path.exists(args.filename):
+        print(f'File {args.filename} already exists')
+        sys.exit(1)
 
     info = resolve_scanner()
     if not info:
@@ -138,10 +137,6 @@ def main():
         'feeder': '<pwg:InputSource>Feeder</pwg:InputSource>',
         'flatbed': '<pwg:InputSource>Flatbed</pwg:InputSource>',
     }[args.source]
-    format = {
-        'pdf': 'application/pdf',
-        'jpeg': 'image/jpeg',
-    }[args.format]
 
     if args.grayscale:
         color = 'Grayscale8'
@@ -154,7 +149,7 @@ def main():
       xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm">
       <pwg:Version>2.0</pwg:Version>
       <scan:Intent>TextAndGraphic</scan:Intent>
-      <pwg:DocumentFormat>{format}</pwg:DocumentFormat>
+      <pwg:DocumentFormat>application/pdf</pwg:DocumentFormat>
       {source}
       <scan:ColorMode>{color}</scan:ColorMode>
       <scan:Duplex>{str(args.duplex).lower()}</scan:Duplex>
@@ -167,7 +162,6 @@ def main():
 
     job_uri = resp.headers['location']
     job_uuid = job_uri.split('/')[-1]
-    page = 1
     while True:
         status, jobinfo = get_status(job_uuid=job_uuid)
         if args.debug:
@@ -179,13 +173,9 @@ def main():
             break
         resp.raise_for_status()
 
-        if args.format == 'pdf':
-            with open(args.filename, 'wb') as f:
-                f.write(resp.content)
-        else:
-            with open(f'{basename}-{page}{fsuffix}', 'wb') as f:
-                f.write(resp.content)
-            page += 1
+        with open(args.filename, 'wb') as f:
+            f.write(resp.content)
+
         if status['pwg:State'] != 'Processing':
             break
         time.sleep(1)
@@ -198,10 +188,8 @@ def main():
         return 1
 
     if args.open:
-        if args.format == 'pdf':
-            subprocess.run(['open', args.filename])
-        else:
-            subprocess.run(['open', f'{basename}-1{fsuffix}'])
+        subprocess.run(['open', args.filename])
+
     return 0
 
 

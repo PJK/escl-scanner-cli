@@ -6,7 +6,7 @@ with open('README.md') as f:
 setup(
     # https://pypi.org/project/scanner-cli/ already taken
     name="escl-scanner-cli",
-    version='0.1.1',
+    version='0.2.0',
     description='Control eSCL network scanners using a CLI utility',
     long_description=long_description,
     long_description_content_type='text/markdown',
