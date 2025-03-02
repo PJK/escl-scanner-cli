@@ -2,6 +2,8 @@
 # scanner-cli
 A MacOS/Linux CLI client for scanning documents using a network scanner supporting the [Mopria Alliance eSCL Scan Technical Specification](https://mopria.org/MopriaeSCLSpecDownload.php)
 
+Outputs PDF files.
+
 Known to work with at least:
 - Brother DCP-L3550CDW
 - Brother MFC-L2710DW
@@ -24,7 +26,8 @@ pip install .
 ## Publishing to PyPI
 
 ```
-rm dist/*
+pip install -r requirements-dev.txt
+[ -n "$(ls -A dist 2>/dev/null)" ] && rm -r dist/*
 python -m build
 python -m twine upload dist/*
 ```
@@ -44,7 +47,6 @@ positional arguments:
 optional arguments:
   -h, --help            show this help message and exit
   --source {feeder,flatbed,automatic}, -S {feeder,flatbed,automatic}
-  --format {pdf,jpeg}, -f {pdf,jpeg}
   --grayscale, -g
   --resolution {75,100,200,300,600}, -r {75,100,200,300,600}
   --debug, -d
