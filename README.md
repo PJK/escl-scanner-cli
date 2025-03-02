@@ -27,7 +27,7 @@ pip install .
 
 ```
 pip install -r requirements-dev.txt
-[ -n "$(ls -A dist 2>/dev/null)" ] && rm -r dist/*
+rm -rf dist/*
 python -m build
 python -m twine upload dist/*
 ```
