@@ -157,7 +157,7 @@ def main():
       <scan:YResolution>{args.resolution}</scan:YResolution>
     </scan:ScanSettings>
     '''
-    resp = session.post(f'{BASE}/ScanJobs', data=job)
+    resp = session.post(f'{BASE}/ScanJobs', data=job, headers={'Content-Type': 'text/xml'})
     resp.raise_for_status()
 
     job_uri = resp.headers['location']
