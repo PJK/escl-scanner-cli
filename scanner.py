@@ -129,6 +129,8 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, debug=Fals
     job_uuid = job_uri.rstrip('/').split('/')[-1]
 
     try:
+        # Each NextDocument response is one page (PDF). Pages are written
+        # sequentially to output_path; 404 signals no more pages remain.
         while True:
             status, jobinfo = _get_status(session, base, job_uuid=job_uuid)
             if debug:
