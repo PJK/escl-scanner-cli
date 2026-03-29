@@ -143,8 +143,7 @@ def main():
     else:
         color = 'RGB24'
 
-    job = f'''
-    <?xml version="1.0" encoding="UTF-8"?>
+    job = f'''<?xml version="1.0" encoding="UTF-8"?>
     <scan:ScanSettings xmlns:scan="http://schemas.hp.com/imaging/escl/2011/05/03"
       xmlns:pwg="http://www.pwg.org/schemas/2010/12/sm">
       <pwg:Version>2.0</pwg:Version>
