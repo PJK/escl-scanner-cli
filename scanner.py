@@ -161,7 +161,7 @@ def main():
     resp.raise_for_status()
 
     job_uri = resp.headers['location']
-    job_uuid = job_uri.split('/')[-1]
+    job_uuid = job_uri.rstrip('/').split('/')[-1]
     while True:
         status, jobinfo = get_status(job_uuid=job_uuid)
         if args.debug:
