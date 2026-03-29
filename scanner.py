@@ -3,6 +3,7 @@
 __version__ = '0.2.1'
 
 import json
+import os
 import sys
 import time
 
@@ -13,6 +14,8 @@ import zeroconf
 '''
 See: https://mopria.org/MopriaeSCLSpecDownload.php
 '''
+
+HTTP_TIMEOUT = 30
 
 
 def resolve_scanner():
@@ -43,7 +46,7 @@ def resolve_scanner():
 
 
 def _get_status(session, base, job_uuid=None):
-    resp = session.get(f'{base}/ScannerStatus')
+    resp = session.get(f'{base}/ScannerStatus', timeout=HTTP_TIMEOUT)
     resp.raise_for_status()
     status = xmltodict.parse(
         resp.text, force_list=('scan:JobInfo'))['scan:ScannerStatus']
@@ -71,6 +74,10 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, debug=Fals
         print('Duplex not supported', file=sys.stderr)
         return False
 
+    if b'rs' not in props:
+        print('Scanner did not advertise a root path (rs)', file=sys.stderr)
+        return False
+
     session = requests.Session()
 
     if debug:
@@ -84,7 +91,7 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, debug=Fals
     if debug:
         print(base, file=sys.stderr)
 
-    resp = session.get(f'{base}/ScannerCapabilities')
+    resp = session.get(f'{base}/ScannerCapabilities', timeout=HTTP_TIMEOUT)
     resp.raise_for_status()
     if debug:
         print(resp.text, file=sys.stderr)
@@ -115,33 +122,41 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, debug=Fals
       <scan:YResolution>{resolution}</scan:YResolution>
     </scan:ScanSettings>
     '''
-    resp = session.post(f'{base}/ScanJobs', data=job, headers={'Content-Type': 'text/xml'})
+    resp = session.post(f'{base}/ScanJobs', data=job, headers={'Content-Type': 'text/xml'}, timeout=HTTP_TIMEOUT)
     resp.raise_for_status()
 
     job_uri = resp.headers['location']
     job_uuid = job_uri.rstrip('/').split('/')[-1]
 
-    while True:
+    try:
+        while True:
+            status, jobinfo = _get_status(session, base, job_uuid=job_uuid)
+            if debug:
+                print(json.dumps(jobinfo, indent=2), file=sys.stderr)
+
+            resp = session.get(f'{job_uri}/NextDocument', timeout=HTTP_TIMEOUT)
+            if resp.status_code == 404:
+                # We are done
+                break
+            resp.raise_for_status()
+
+            with open(output_path, 'wb') as f:
+                f.write(resp.content)
+
+            if status['pwg:State'] != 'Processing':
+                break
+            time.sleep(1)
+
         status, jobinfo = _get_status(session, base, job_uuid=job_uuid)
+        job_reason = jobinfo['pwg:JobStateReasons']['pwg:JobStateReason']
         if debug:
-            print(json.dumps(jobinfo, indent=2), file=sys.stderr)
+            print(job_reason, file=sys.stderr)
 
-        resp = session.get(f'{job_uri}/NextDocument')
-        if resp.status_code == 404:
-            # We are done
-            break
-        resp.raise_for_status()
+        success = job_reason == 'JobCompletedSuccessfully'
+    except Exception:
+        success = False
 
-        with open(output_path, 'wb') as f:
-            f.write(resp.content)
+    if not success and os.path.exists(output_path):
+        os.remove(output_path)
 
-        if status['pwg:State'] != 'Processing':
-            break
-        time.sleep(1)
-
-    status, jobinfo = _get_status(session, base, job_uuid=job_uuid)
-    job_reason = jobinfo['pwg:JobStateReasons']['pwg:JobStateReason']
-    if debug:
-        print(job_reason, file=sys.stderr)
-
-    return job_reason == 'JobCompletedSuccessfully'
+    return success
