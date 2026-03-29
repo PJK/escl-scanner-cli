@@ -15,7 +15,7 @@ import zeroconf
 See: https://mopria.org/MopriaeSCLSpecDownload.php
 '''
 
-HTTP_TIMEOUT = 30
+HTTP_TIMEOUT_SECONDS = 30
 
 
 def resolve_scanner():
