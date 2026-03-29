@@ -39,7 +39,7 @@ def resolve_scanner():
                 if listener.info:
                     break
                 time.sleep(.1)
-        except:
+        except Exception:
             pass
     return listener.info
 
