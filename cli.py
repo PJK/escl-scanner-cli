@@ -7,10 +7,11 @@ import sys
 
 import click
 
-from scanner import resolve_scanner, scan
+from scanner import __version__, resolve_scanner, scan
 
 
 @click.command()
+@click.version_option(version=__version__)
 @click.argument('filename')
 @click.option('--source', '-S', type=click.Choice(['feeder', 'flatbed', 'automatic']), default='automatic', show_default=True)
 @click.option('--grayscale', '-g', is_flag=True, help='Scan in grayscale instead of RGB')
