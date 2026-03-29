@@ -14,15 +14,16 @@ setup(
     author='https://github.com/zegman, Pavel Kalvoda',
     author_email='me@pavelkalvoda.com',
     license='Apache',
-    py_modules=['scanner'],
+    py_modules=['scanner', 'cli'],
     install_requires=[
+        'click',
         'requests',
         'xmltodict',
         'zeroconf',
     ],
     entry_points={
         'console_scripts': [
-            'escl-scan = scanner:main',
+            'escl-scan = cli:main',
         ],
     },
 )
