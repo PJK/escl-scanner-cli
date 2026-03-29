@@ -13,14 +13,15 @@ Known to work with at least:
 - HP OfficeJet Pro 9010 series
 
 ## Installation
-From PyPI:
+
+From [PyPI](https://pypi.org/project/escl-scanner-cli/) using [pipx](https://pipx.pypa.io):
 ```
 pipx install escl-scanner-cli
 ```
 
-Locally:
+From source (latest development version):
 ```
-pip install .
+pipx install . --force
 ```
 
 ## Publishing to PyPI
