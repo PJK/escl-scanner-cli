@@ -17,6 +17,7 @@ setup(
     py_modules=['scanner', 'cli'],
     install_requires=[
         'click',
+        'papersize',
         'requests',
         'xmltodict',
         'zeroconf',
