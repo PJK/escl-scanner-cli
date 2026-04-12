@@ -19,6 +19,11 @@ See: https://mopria.org/MopriaeSCLSpecDownload.php
 
 HTTP_TIMEOUT_SECONDS = 30
 
+DISCOVERY_TIMEOUT_SECONDS = 30.0
+DISCOVERY_RETRIES = 2
+DISCOVERY_RETRY_DELAY_SECONDS = 0.5
+DISCOVERY_SLEEP_SECONDS = 0.1
+
 
 def parse_region(region_spec):
     '''
@@ -55,7 +60,10 @@ def parse_region(region_spec):
     return {k: int(v / c) for k, v in region_decimals.items()}
 
 
-def resolve_scanner():
+def resolve_scanner(
+    timeout_seconds=DISCOVERY_TIMEOUT_SECONDS,
+    retries=DISCOVERY_RETRIES,
+):
     class ZCListener:
         def __init__(self):
             self.info = None
@@ -69,21 +77,25 @@ def resolve_scanner():
         def add_service(self, zeroconf, type, name):
             self.info = zeroconf.get_service_info(type, name)
 
-    with zeroconf.Zeroconf() as zc:
-        listener = ZCListener()
-        zeroconf.ServiceBrowser(zc, "_uscan._tcp.local.", listener=listener)
-        try:
-            for i in range(0, 10 * 10):
-                if listener.info:
-                    break
-                time.sleep(.1)
-        except Exception:
-            pass
-    return listener.info
+    for attempt in range(retries):
+        with zeroconf.Zeroconf() as zc:
+            listener = ZCListener()
+            zeroconf.ServiceBrowser(zc, "_uscan._tcp.local.", listener=listener)
+            deadline = time.monotonic() + timeout_seconds
+            try:
+                while time.monotonic() < deadline:
+                    if listener.info:
+                        return listener.info
+                    time.sleep(DISCOVERY_SLEEP_SECONDS)
+            except Exception:
+                pass
+        if attempt + 1 < retries:
+            time.sleep(DISCOVERY_RETRY_DELAY_SECONDS)
+    return None
 
 
 def _get_status(session, base, job_uuid=None):
-    resp = session.get(f'{base}/ScannerStatus', timeout=HTTP_TIMEOUT)
+    resp = session.get(f'{base}/ScannerStatus', timeout=HTTP_TIMEOUT_SECONDS)
     resp.raise_for_status()
     status = xmltodict.parse(
         resp.text, force_list=('scan:JobInfo'))['scan:ScannerStatus']
@@ -128,7 +140,7 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, region=Non
     if debug:
         print(base, file=sys.stderr)
 
-    resp = session.get(f'{base}/ScannerCapabilities', timeout=HTTP_TIMEOUT)
+    resp = session.get(f'{base}/ScannerCapabilities', timeout=HTTP_TIMEOUT_SECONDS)
     resp.raise_for_status()
     if debug:
         print(resp.text, file=sys.stderr)
@@ -141,7 +153,7 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, region=Non
     source_xml = {
         'automatic': '',
         'feeder': '<pwg:InputSource>Feeder</pwg:InputSource>',
-        'flatbed': '<pwg:InputSource>Flatbed</pwg:InputSource>',
+        'flatbed': '<pwg:InputSource>Platen</pwg:InputSource>',
     }[source]
 
     color = 'Grayscale8' if grayscale else 'RGB24'
@@ -171,7 +183,7 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, region=Non
       </pwg:ScanRegions>
         '''
     job += '    </scan:ScanSettings>'
-    resp = session.post(f'{base}/ScanJobs', data=job, headers={'Content-Type': 'text/xml'}, timeout=HTTP_TIMEOUT)
+    resp = session.post(f'{base}/ScanJobs', data=job, headers={'Content-Type': 'text/xml'}, timeout=HTTP_TIMEOUT_SECONDS)
     resp.raise_for_status()
 
     job_uri = resp.headers['location']
@@ -185,7 +197,18 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, region=Non
             if debug:
                 print(json.dumps(jobinfo, indent=2), file=sys.stderr)
 
-            resp = session.get(f'{job_uri}/NextDocument', timeout=HTTP_TIMEOUT)
+            retry_count = 0
+            while True:
+                resp = session.get(f'{job_uri}/NextDocument', timeout=HTTP_TIMEOUT_SECONDS)
+                if resp.status_code != 503:
+                    break
+                retry_count += 1
+                if debug:
+                    print(f'503 from NextDocument (attempt {retry_count})', file=sys.stderr)
+                if retry_count >= 100:
+                    print('Scanner returned 503 for NextDocument', file=sys.stderr)
+                    resp.raise_for_status()
+                time.sleep(1)
             if resp.status_code == 404:
                 # We are done
                 break
