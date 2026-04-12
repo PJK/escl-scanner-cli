@@ -7,7 +7,7 @@ import sys
 
 import click
 
-from scanner import __version__, resolve_scanner, scan
+from scanner import __version__, parse_region, resolve_scanner, scan
 
 
 @click.command()
@@ -20,8 +20,9 @@ from scanner import __version__, resolve_scanner, scan
 @click.option('--today', '-t', is_flag=True, help='Prepend date to filename in ISO format')
 @click.option('--no-open', '-o', 'no_open', is_flag=True, help="Don't open the PDF after scanning")
 @click.option('--quiet', '-q', is_flag=True, help='Suppress scanner name output')
+@click.option('--region', '-R', default=None, help='Region to scan: paper size (e.g. a4) or Xoffset:Yoffset:Width:Height (e.g. 1cm:1.5cm:10cm:20cm)')
 @click.option('--debug', '-d', is_flag=True, help='Print debugging information to stderr')
-def main(filename, source, grayscale, resolution, duplex, today, no_open, quiet, debug):
+def main(filename, source, grayscale, resolution, duplex, today, no_open, quiet, region, debug):
     if today:
         filename = datetime.date.today().isoformat() + '-' + filename
 
@@ -30,6 +31,13 @@ def main(filename, source, grayscale, resolution, duplex, today, no_open, quiet,
 
     if os.path.exists(filename):
         raise click.UsageError(f'File {filename} already exists')
+
+    parsed_region = None
+    if region:
+        try:
+            parsed_region = parse_region(region)
+        except ValueError as e:
+            raise click.UsageError(str(e))
 
     info = resolve_scanner()
     if not info:
@@ -50,6 +58,7 @@ def main(filename, source, grayscale, resolution, duplex, today, no_open, quiet,
         resolution=int(resolution),
         duplex=duplex,
         output_path=filename,
+        region=parsed_region,
         debug=debug,
     )
 

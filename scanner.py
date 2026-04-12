@@ -6,7 +6,9 @@ import json
 import os
 import sys
 import time
+from decimal import Decimal
 
+import papersize
 import requests
 import xmltodict
 import zeroconf
@@ -16,6 +18,41 @@ See: https://mopria.org/MopriaeSCLSpecDownload.php
 '''
 
 HTTP_TIMEOUT_SECONDS = 30
+
+
+def parse_region(region_spec):
+    '''
+    Parse a region spec into a dict of ThreeHundredthsOfInches integers.
+    Accepts a paper size name (e.g. 'a4') or 'Xoffset:Yoffset:Width:Height'
+    with units understood by the papersize library (e.g. '1cm:1.5cm:10cm:20cm').
+    Raises ValueError on invalid input.
+    '''
+    region_spec = region_spec.lower()
+    try:
+        if region_spec in papersize.SIZES:
+            paper_size = papersize.parse_papersize(region_spec)
+            region_decimals = {
+                'x': Decimal('0'),
+                'y': Decimal('0'),
+                'width': paper_size[0],
+                'height': paper_size[1],
+            }
+        else:
+            parts = region_spec.split(':')
+            if len(parts) != 4:
+                raise papersize.CouldNotParse(region_spec)
+            parsed_parts = [papersize.parse_length(p) for p in parts]
+            region_decimals = {
+                'x': parsed_parts[0],
+                'y': parsed_parts[1],
+                'width': parsed_parts[2],
+                'height': parsed_parts[3],
+            }
+    except papersize.CouldNotParse:
+        raise ValueError(f'Could not parse region: {region_spec}')
+
+    c = papersize.UNITS['in'] / 300  # ThreeHundredthsOfInches
+    return {k: int(v / c) for k, v in region_decimals.items()}
 
 
 def resolve_scanner():
@@ -63,7 +100,7 @@ def _get_status(session, base, job_uuid=None):
     raise RuntimeError('Job not found')
 
 
-def scan(info, *, source, grayscale, resolution, duplex, output_path, debug=False):
+def scan(info, *, source, grayscale, resolution, duplex, output_path, region=None, debug=False):
     '''
     Perform a scan and write the result as a PDF to output_path.
     Returns True on success, False on failure.
@@ -120,8 +157,20 @@ def scan(info, *, source, grayscale, resolution, duplex, output_path, debug=Fals
       <scan:Duplex>{str(duplex).lower()}</scan:Duplex>
       <scan:XResolution>{resolution}</scan:XResolution>
       <scan:YResolution>{resolution}</scan:YResolution>
-    </scan:ScanSettings>
     '''
+    if region:
+        job += f'''
+      <pwg:ScanRegions>
+        <pwg:ScanRegion>
+          <pwg:ContentRegionUnits>escl:ThreeHundredthsOfInches</pwg:ContentRegionUnits>
+          <pwg:XOffset>{region['x']}</pwg:XOffset>
+          <pwg:YOffset>{region['y']}</pwg:YOffset>
+          <pwg:Width>{region['width']}</pwg:Width>
+          <pwg:Height>{region['height']}</pwg:Height>
+        </pwg:ScanRegion>
+      </pwg:ScanRegions>
+        '''
+    job += '    </scan:ScanSettings>'
     resp = session.post(f'{base}/ScanJobs', data=job, headers={'Content-Type': 'text/xml'}, timeout=HTTP_TIMEOUT)
     resp.raise_for_status()
 
